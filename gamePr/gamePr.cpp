@@ -10,35 +10,27 @@ using namespace std;
 #define LEFT	75
 #define RIGHT	77
 
-int currentX, currentY;
-int c = 0;
-
-char ShowMap[22][23] = {
-	"++++++++++++++++++++++",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"+....................+",
-	"++++++++++++++++++++++"
+char Stage[10][16] =
+{
+	"+++++++++++++++",
+	"+++++++++++++++",
+	"++++&  ++++++++",
+	"+++  OO    ++++",
+	"+++  O     .+++",
+	"+++        .+++",
+	"+++   @    .+++",
+	"+++     @   +++",
+	"+++         +++",
+	"+++++++++++++++"
 };
+char backgroundMap[10][16];
+int currentX, currentY;
+int totalMove;
+bool bPull = false;
+int afterX, afterY;
 
-void gotoXY(int x, int y) {
+void gotoXY(int x, int y)
+{
 	HANDLE hOut;
 	COORD Cur;
 	hOut = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -47,41 +39,40 @@ void gotoXY(int x, int y) {
 	SetConsoleCursorPosition(hOut, Cur);
 }
 
-void displayScreen() {
-	if (c == 0) {
-		for (int i = 0; i < 10; i++)
-		{
-			int a = rand() % 20 + 1;
-			int b = rand() % 20 + 1;
-			do
-			{
-				a = rand() % 20 + 1;
-				b = rand() % 20 + 1;
-			} while (ShowMap[b][a] == '+');
-			ShowMap[b][a] = '+';
-
-		}
-		c++;
-	}
-
-	for (int y = 0; y < 22; y++)
-	{
-		for (int x = 0; x < 22; x++)
-		{
-			gotoXY(x, y);
-			_putch(ShowMap[y][x]);
-		}
-	}
-
-
-	gotoXY(currentX, currentY);
-	_putch('0');
-	gotoXY(30, 2);
-	cout << "Q : 종료";
+void clrscr()
+{
+	system("cls");
 }
 
-void Move(int dir) {
+void initScreen() {
+	for (int y = 0; y < 10; y++)
+	{
+		for (int x = 0; x < 15; x++)
+		{
+			gotoXY(x, y);
+			_putch(backgroundMap[y][x]);
+		}
+	}
+	gotoXY(currentX, currentY);
+	_putch('&');
+}
+
+bool checkEnd() {
+	for (int y = 0; y < 10; y++)
+	{
+		for (int x = 0; x < 15; x++)
+		{
+			if (Stage[y][x] == '.' && backgroundMap[y][x] != 'O') {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+void move(int dir) {
 	int dir_x = 0, dir_y = 0;
+
 	switch (dir)
 	{
 	case LEFT:
@@ -97,25 +88,94 @@ void Move(int dir) {
 		dir_y = 1;
 		break;
 	}
-	if (ShowMap[currentY + dir_y][currentX + dir_x] != '+') {
-		currentX += dir_x;
-		currentY += dir_y;
+
+	if (backgroundMap[currentY + dir_y][currentX + dir_x] != '+') {
+		if (backgroundMap[currentY + dir_y][currentX + dir_x] == 'O') {
+			if (backgroundMap[currentY + dir_y * 2][currentX + dir_x * 2] == ' ' || backgroundMap[currentY + dir_y * 2][currentX + dir_x * 2] == '.') {
+				if (Stage[currentY + dir_y][currentX + dir_x] == '.') {
+					backgroundMap[currentY + dir_y][currentX + dir_x] = '.';
+				}
+				else if (Stage[currentY + dir_y][currentX + dir_x] == '@') {
+					backgroundMap[currentY + dir_y][currentX + dir_x] = '@';
+				}
+				else {
+					backgroundMap[currentY + dir_y][currentX + dir_x] = ' ';
+				}
+				backgroundMap[currentY + dir_y * 2][currentX + dir_x * 2] = 'O';
+			}
+			else if (backgroundMap[currentY + dir_y * 2][currentX + dir_x * 2] == '@') {
+				for (int y = 0; y < 10; y++)
+				{
+					for (int x = 0; x < 15; x++)
+					{
+						if (Stage[y][x] == '@' && x != currentX + dir_x * 2 && y != currentY + dir_y * 2) {
+							if (backgroundMap[y][x] == 'O')
+								return;
+
+							backgroundMap[currentY + dir_y][currentX + dir_x] = ' ';
+							backgroundMap[y][x] = 'O';
+						}
+					}
+				}
+
+			}
+			else {
+				return;
+			}
+		}
+
+
+		if (bPull) {
+			if (backgroundMap[afterY + dir_y][afterX + dir_x] != '+') {
+				if (backgroundMap[afterY + dir_y][afterX + dir_x] != 'O') {
+					if (Stage[afterY][afterX] == '.') {
+						backgroundMap[afterY][afterX] = '.';
+					}
+					else if (Stage[afterY][afterX] == '@') {
+						backgroundMap[afterY][afterX] = '@';
+					}
+					else {
+						backgroundMap[afterY][afterX] = ' ';
+					}
+					backgroundMap[afterY + dir_y][afterX + dir_x] = '8';
+					afterX += dir_x;
+					afterY += dir_y;
+					currentX += dir_x;
+					currentY += dir_y;
+					totalMove++;
+				}
+			}
+		}
+		else
+		{
+			currentX += dir_x;
+			currentY += dir_y;
+			totalMove++;
+		}
 	}
-
-
 }
 
 int main() {
 	int ch;
-	currentX = 1;
-	currentY = 1;
-	srand((unsigned)time(NULL));
 
+	memcpy(backgroundMap, Stage, sizeof(backgroundMap));
+	for (int y = 0; y < 10; y++)
+	{
+		for (int x = 0; x < 15; x++)
+		{
+			if (Stage[y][x] == '&') {
+				currentX = x;
+				currentY = y;
+				backgroundMap[y][x] = ' ';
+			}
+		}
+	}
+	clrscr();
+	totalMove = 0;
 	while (true)
 	{
-		displayScreen();
+		initScreen();
 		ch = _getch();
-
 		if (ch == 0xE0 || ch == 0) {
 			ch = _getch();
 			switch (ch)
@@ -124,45 +184,238 @@ int main() {
 			case RIGHT:
 			case UP:
 			case DOWN:
-				Move(ch);
+				move(ch);
 				break;
 			}
 		}
 		else {
 			ch = tolower(ch);
+			if (ch == 'r') {
+				break;
+			}
 			if (ch == 'q') {
+				clrscr();
 				exit(0);
 			}
-			else if (ch == 'z') {
-				ShowMap[currentY][currentX] = 'X';
-			}
-			else if (ch == 'a') {
-				//상하좌우 +사라지고 .변경 / 테두리 제외
-				// 0,? 22, ? 22,?
-				//나중에고칠거
-				if (currentY -1 != 0) {
-					ShowMap[currentY - 1][currentX] = '.';
+			if (ch == 'p') {
+				if (bPull) {
+					bPull = false;
+					backgroundMap[afterY][afterX] = 'O';
 				}
-
-				if (currentY + 1 != 21) {
-					ShowMap[currentY + 1][currentX] = '.';
+				else {
+					bool check[4] = { false };
+					int a = 0;
+					if (backgroundMap[currentY - 1][currentX] == 'O') {
+						afterX = currentX;
+						afterY = currentY - 1;
+						check[0] = true;
+					}
+					else if (backgroundMap[currentY + 1][currentX] == 'O') {
+						afterX = currentX;
+						afterY = currentY + 1;
+						check[1] = true;
+					}
+					else if (backgroundMap[currentY][currentX-1] == 'O') {
+						afterX = currentX-1;
+						afterY = currentY;
+						check[2] = true;
+					}
+					else if (backgroundMap[currentY][currentX+1] == 'O') {
+						afterX = currentX+1;
+						afterY = currentY;
+						check[3] = true;
+					}
+					for (int i = 0; i < 4; i++)
+					{
+						if (check[i])
+						{
+							a++;
+						}
+					}
+					if (a == 1) {
+						backgroundMap[afterY][afterX] = '8';
+						bPull = true;
+					}
 				}
-
-				if (currentX - 1 != 0) {
-					ShowMap[currentY][currentX - 1] = '.';
-				}
-
-				if (currentX + 1 != 21) {
-					ShowMap[currentY][currentX + 1] = '.';
-				}
-
 			}
 		}
+
+		if (checkEnd()) {
+			clrscr();
+			gotoXY(10, 4);
+			printf("잘 풀엇스빈다 아무거나 누르세여");
+			_getch();
+			clrscr();
+			exit(0);
+			break;
+		}
 	}
+
+	//gotoXY(20, 15);
+
 
 
 	return 0;
 }
+
+//#define UP		72
+//#define DOWN	80
+//#define LEFT	75
+//#define RIGHT	77
+//
+//int currentX, currentY;
+//int c = 0;
+//
+//char ShowMap[22][23] = {
+//	"++++++++++++++++++++++",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"+....................+",
+//	"++++++++++++++++++++++"
+//};
+//
+//void gotoXY(int x, int y) {
+//	HANDLE hOut;
+//	COORD Cur;
+//	hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+//	Cur.X = x;
+//	Cur.Y = y;
+//	SetConsoleCursorPosition(hOut, Cur);
+//}
+//
+//void displayScreen() {
+//	if (c == 0) {
+//		for (int i = 0; i < 10; i++)
+//		{
+//			int a = rand() % 20 + 1;
+//			int b = rand() % 20 + 1;
+//			do
+//			{
+//				a = rand() % 20 + 1;
+//				b = rand() % 20 + 1;
+//			} while (ShowMap[b][a] == '+');
+//			ShowMap[b][a] = '+';
+//
+//		}
+//		c++;
+//	}
+//
+//	for (int y = 0; y < 22; y++)
+//	{
+//		for (int x = 0; x < 22; x++)
+//		{
+//			gotoXY(x, y);
+//			_putch(ShowMap[y][x]);
+//		}
+//	}
+//
+//
+//	gotoXY(currentX, currentY);
+//	_putch('0');
+//	gotoXY(30, 2);
+//	cout << "Q : 종료";
+//}
+//
+//void Move(int dir) {
+//	int dir_x = 0, dir_y = 0;
+//	switch (dir)
+//	{
+//	case LEFT:
+//		dir_x = -1;
+//		break;
+//	case RIGHT:
+//		dir_x = 1;
+//		break;
+//	case UP:
+//		dir_y = -1;
+//		break;
+//	case DOWN:
+//		dir_y = 1;
+//		break;
+//	}
+//	if (ShowMap[currentY + dir_y][currentX + dir_x] != '+') {
+//		currentX += dir_x;
+//		currentY += dir_y;
+//	}
+//
+//
+//}
+//
+//int main() {
+//	int ch;
+//	currentX = 1;
+//	currentY = 1;
+//	srand((unsigned)time(NULL));
+//
+//	while (true)
+//	{
+//		displayScreen();
+//		ch = _getch();
+//
+//		if (ch == 0xE0 || ch == 0) {
+//			ch = _getch();
+//			switch (ch)
+//			{
+//			case LEFT:
+//			case RIGHT:
+//			case UP:
+//			case DOWN:
+//				Move(ch);
+//				break;
+//			}
+//		}
+//		else {
+//			ch = tolower(ch);
+//			if (ch == 'q') {
+//				exit(0);
+//			}
+//			else if (ch == 'z') {
+//				ShowMap[currentY][currentX] = 'X';
+//			}
+//			else if (ch == 'a') {
+//				//상하좌우 +사라지고 .변경 / 테두리 제외
+//				// 0,? 22, ? 22,?
+//				//나중에고칠거
+//				if (currentY -1 != 0) {
+//					ShowMap[currentY - 1][currentX] = '.';
+//				}
+//
+//				if (currentY + 1 != 21) {
+//					ShowMap[currentY + 1][currentX] = '.';
+//				}
+//
+//				if (currentX - 1 != 0) {
+//					ShowMap[currentY][currentX - 1] = '.';
+//				}
+//
+//				if (currentX + 1 != 21) {
+//					ShowMap[currentY][currentX + 1] = '.';
+//				}
+//
+//			}
+//		}
+//	}
+//
+//
+//	return 0;
+//}
 
 
 
